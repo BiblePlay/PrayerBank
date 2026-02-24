@@ -291,7 +291,6 @@ body{
   flex:0 0 auto;
 }
 .sheetHead .leftHead{ display:flex; align-items:center; gap:10px; min-width:0; }
-.rightHead{ display:flex; align-items:center; gap:10px; flex:0 0 auto; }
 .sheetHead .t{ font-weight:950; font-size:16px; white-space:nowrap; }
 .btnMiniGhost{
   border:1px solid rgba(16,24,40,.10);
@@ -373,6 +372,25 @@ body{
 }
 
 /* Toast + Fireworks(아래→위) */
+.toast{
+  position:fixed;
+  left:50%;
+  top:18px;
+  transform:translateX(-50%);
+  background:#fff;
+  border:1px solid rgba(16,24,40,.12);
+  box-shadow: 0 18px 42px rgba(16,24,40,.18);
+  padding:10px 12px;
+  border-radius:16px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  opacity:0;
+  pointer-events:none;
+  transition: .18s ease;
+  z-index:200; /* ✅ PC에서도 항상 보이게 */
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(2px); }
 .toast .badge{
   width:34px; height:34px;
   border-radius:12px;
@@ -395,70 +413,42 @@ body{
   width:8px; height:12px;
   border-radius:3px;
   opacity:.95;
-  transform: translateY(0) rotate(0deg);
-  animation: rise 950ms ease-out forwards;
+  transform: translate(0,0) rotate(0deg);
+  animation: fly var(--dur, 920ms) ease-out forwards;
+  will-change: transform, opacity;
 }
-@keyframes rise{
-  0%{ transform: translateY(0) rotate(0deg); opacity:.95; }
+@keyframes fly{
+  0%{ transform: translate(0,0) rotate(0deg); opacity:.95; }
   70%{ opacity:.95; }
+  100%{ transform: translate(var(--dx), var(--dy)) rotate(240deg); opacity:0; }
+}
+70%{ opacity:.95; }
   100%{ transform: translateY(-115vh) rotate(220deg); opacity:0; }
 }
 
-/* ===== Coin performance (no text) ===== */
-.coinOverlay{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 180;
-}
-.coinOverlay.show{ display:flex; }
-.coinStage{
-  position: relative;
-  width: min(70vmin, 420px);
-  height: min(70vmin, 420px);
-}
-.coinBurst{
-  position:absolute;
-  left:50%; top:50%;
-  width: min(42vmin, 260px);
-  height: min(42vmin, 260px);
-  transform: translate(-50%,-50%) scale(.72);
-  opacity: 0;
-  filter: drop-shadow(0 18px 30px rgba(16,24,40,.22));
-  animation: coinPop 1100ms cubic-bezier(.16,1,.3,1) forwards;
-}
-.coinBurst.spin{ animation-name: coinPopSpin; }
-
-@keyframes coinPop{
-  0%   { opacity:0; transform:translate(-50%,-50%) scale(.6); }
-  22%  { opacity:1; transform:translate(-50%,-50%) scale(1.02); }
-  65%  { opacity:1; transform:translate(-50%,-50%) scale(.98); }
-  100% { opacity:0; transform:translate(-50%,-60%) scale(.92); }
-}
-@keyframes coinPopSpin{
-  0%   { opacity:0; transform:translate(-50%,-50%) scale(.6) rotate(-10deg); }
-  22%  { opacity:1; transform:translate(-50%,-50%) scale(1.03) rotate(15deg); }
-  65%  { opacity:1; transform:translate(-50%,-50%) scale(.99) rotate(355deg); }
-  100% { opacity:0; transform:translate(-50%,-60%) scale(.92) rotate(420deg); }
-}
-
-/* ===== iOS-like donut emphasis ===== */
-.donutSvg .slice{ transition: opacity .18s ease, transform .22s ease; transform-origin: 130px 130px; }
-.donutSvg .slice.isDim{ opacity:.18 !important; }
-.donutSvg .slice.isSel{ opacity:.95 !important; filter: drop-shadow(0 10px 18px rgba(16,24,40,.18)); }
+/* donut pointer fix */
+#donutSvg path{ pointer-events: all; cursor: pointer; }
 </style>
+<script>
 
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#3B63F3">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="기도통장">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  // file:// 로 열면 manifest/service worker가 막히는 게 정상(CORS)이라
+  // 로컬 테스트 시 콘솔 에러를 줄이기 위해 https/localhost에서만 활성화합니다.
+  if (location.protocol !== "file:") {
+    const m = document.createElement("link");
+    m.rel = "manifest";
+    m.href = "manifest.json";
+    document.head.appendChild(m);
+  }
 
+
+// Service Worker (GitHub Pages / HTTPS에서만)
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
+
+</script>
 </head>
 
 <body>
@@ -625,11 +615,9 @@ body{
     <div class="sheetHead">
       <div class="leftHead">
         <div class="t">기도차트 분석</div>
+        <button class="btnMiniGhost" id="resetDonut">전체</button>
       </div>
-      <div class="rightHead">
-        <button class="btnMiniGhost" id="resetDonut" title="전체 보기">전체</button>
-        <button class="btnCloseBlue" id="closeModal">닫기</button>
-      </div>
+      <button class="btnCloseBlue" id="closeModal">닫기</button>
     </div>
 
     <div class="sheetBody">
@@ -663,10 +651,8 @@ body{
   </div>
 </div>
 
-<!-- Coin Performance Overlay -->
-<div class="coinOverlay" id="coinOverlay" aria-hidden="true">
-  <div class="coinStage" id="coinStage"></div>
-</div>
+<!-- Fireworks -->
+<div class="fireWrap" id="fireWrap"></div>
 <script>
 
 /* ===== 설정 ===== */
@@ -716,6 +702,7 @@ const legendEl = document.getElementById("legend");
 const selectedMetaEl = document.getElementById("selectedMeta");
 const resetDonutBtn = document.getElementById("resetDonut");
 
+const fireWrap = document.getElementById("fireWrap");
 
 /* 날짜 */
 document.getElementById("today").textContent =
@@ -885,34 +872,49 @@ function renderHeader(){
 }
 
 /* ===== 축하(토스트 3초 + 아래→위 폭죽) ===== */
-function showCoinBurst(addN){
-  // addN: 새로 추가된 코인 개수(보통 1)
-  const overlay = document.getElementById("coinOverlay");
-  const stage = document.getElementById("coinStage");
-  // 아이콘(코인)은 현재 UI에 쓰는 coin 이미지 그대로 활용
-  // (img src는 기존 coinImgEl에서 가져옴)
-  const src = coinImgEl.getAttribute("src");
-  if(!src) return;
 
-  overlay.classList.add("show");
-  for(let i=0;i<Math.min(addN,3);i++){
-    const img = document.createElement("img");
-    img.className = "coinBurst spin";
-    img.alt = "coin";
-    img.src = src;
-    // 살짝 랜덤 오프셋 (너무 튀지 않게)
-    const dx = (Math.random()*14 - 7);
-    const dy = (Math.random()*10 - 6);
-    img.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.72)`;
-    stage.appendChild(img);
-    img.addEventListener("animationend", ()=> img.remove());
+}
+
+/* ===== 4방향 폭죽 (상/하/좌/우) ===== */
+function spawnSpark(vw, vh, dx, dy, color){
+  const p = document.createElement("div");
+  p.className = "spark";
+  p.style.left = vw + "vw";
+  p.style.top  = vh + "vh";
+  p.style.background = color;
+  p.style.width = (7 + Math.random()*9) + "px";
+  p.style.height = (10 + Math.random()*10) + "px";
+  p.style.borderRadius = (2 + Math.random()*6) + "px";
+  p.style.setProperty("--dx", dx);
+  p.style.setProperty("--dy", dy);
+  p.style.setProperty("--dur", (780 + Math.random()*520) + "ms");
+  fireWrapEl.appendChild(p);
+  p.addEventListener("animationend", ()=>p.remove(), {once:true});
+}
+function fireBurst4(intensity=1){
+  const colors = ["#2563eb","#4f7dff","#f59e0b","#22c55e","#ef4444","#a855f7","#06b6d4"];
+  const n = Math.min(140, Math.max(48, Math.round(80*intensity)));
+  const pick = ()=>colors[Math.floor(Math.random()*colors.length)];
+  for(let i=0;i<n;i++){
+    if(i%4===0){ // Top -> down
+      const x = 10 + Math.random()*80;
+      spawnSpark(x, -6, (Math.random()*22 - 11) + "vw", (95 + Math.random()*30) + "vh", pick());
+    } else if(i%4===1){ // Bottom -> up
+      const x = 10 + Math.random()*80;
+      spawnSpark(x, 106, (Math.random()*22 - 11) + "vw", (-95 - Math.random()*30) + "vh", pick());
+    } else if(i%4===2){ // Left -> right
+      const y = 12 + Math.random()*76;
+      spawnSpark(-6, y, (95 + Math.random()*30) + "vw", (Math.random()*20 - 10) + "vh", pick());
+    } else { // Right -> left
+      const y = 12 + Math.random()*76;
+      spawnSpark(106, y, (-95 - Math.random()*30) + "vw", (Math.random()*20 - 10) + "vh", pick());
+    }
   }
-  clearTimeout(overlay._t);
-  overlay._t = setTimeout(()=>{
-    overlay.classList.remove("show");
-    // 잔여 노드 청소
-    stage.innerHTML = "";
-  }, 1200);
+}
+
+function celebrateCoin(addN){
+  const intensity = Math.min(2.2, 1 + (addN-1)*0.35);
+  fireBurst4(intensity);
 }
 
 /* ===== 코인 ===== */
@@ -922,7 +924,7 @@ function renderCoins(){
   coinCountEl.textContent = `×${coins}`;
   if(prevCoins === null) prevCoins = coins;
   if(coins > prevCoins){
-    showCoinBurst(coins - prevCoins);
+    celebrateCoin(coins - prevCoins);
     prevCoins = coins;
   }
 }
@@ -994,25 +996,6 @@ function polarToCartesian(cx, cy, r, angleDeg){
   const a = (angleDeg - 90) * Math.PI / 180.0;
   return { x: cx + (r * Math.cos(a)), y: cy + (r * Math.sin(a)) };
 }
-
-function applySliceState(path, key, startDeg, endDeg){
-  path.classList.add("slice");
-  path.setAttribute("data-key", key);
-  const mid = (startDeg + endDeg) / 2;
-  path.setAttribute("data-mid", String(mid));
-  path.style.cursor = "pointer";
-  // 상태 반영
-  if(selectedKey && key !== selectedKey){
-    path.classList.add("isDim");
-  }else if(selectedKey && key === selectedKey){
-    path.classList.add("isSel");
-    const pop = 7;
-    const rad = (mid - 90) * Math.PI / 180;
-    const dx = Math.cos(rad) * pop;
-    const dy = Math.sin(rad) * pop;
-    path.setAttribute("transform", `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
-  }
-}
 function donutArcPath(cx, cy, rOuter, rInner, startAngle, endAngle){
   const startOuter = polarToCartesian(cx, cy, rOuter, endAngle);
   const endOuter   = polarToCartesian(cx, cy, rOuter, startAngle);
@@ -1078,7 +1061,6 @@ function renderDonut(){
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", donutArcPath(cx,cy,rOuter,rInner,start,end));
       path.setAttribute("fill", d.color);
-      path.setAttribute("data-key", d.key);
       path.setAttribute("opacity", "0.92");
       path.style.cursor = "pointer";
       path.addEventListener("click", () => selectDonut(d.key));
@@ -1131,29 +1113,11 @@ function renderDonut(){
   });
 
   clearSelectionUI();
-  /* keep selection */
-  if(selectedKey){
-    // dim/pop already applied by applySliceState; update meta/center/legend
-    const c = cats.find(x=>x.key===selectedKey);
-    const totalNow = state.total || 0;
-    const amtNow = state.amtByCat[selectedKey] || 0;
-    const pctNow = totalNow>0 ? (amtNow/totalNow)*100 : 0;
-    selectedMetaEl.textContent = c ? `● ${c.label}` : "● 선택";
-    selectedMetaEl.style.color = c ? c.color : "rgba(16,24,40,.55)";
-    centerAmtEl.textContent = won(amtNow);
-    centerLblEl.textContent = c ? `${c.label} · ${pctNow.toFixed(0)}%` : "선택";
-    legendEl.querySelectorAll(".legendItem").forEach(el => el.classList.remove("selected"));
-    const idx = cats.findIndex(x=>x.key===selectedKey);
-    const row = legendEl.children[idx];
-    if(row) row.classList.add("selected");
-  }
-  updateDonutCrumb();
 }
 
 function selectDonut(key){
   const total = state.total || 0;
   const c = cats.find(x => x.key === key);
-  if(!c){ clearSelectionUI(); centerAmtEl.textContent = won(state.total || 0); return; }
   const amt = state.amtByCat[key] || 0;
   const pct = total > 0 ? (amt/total)*100 : 0;
 
@@ -1168,15 +1132,15 @@ function selectDonut(key){
   const row = legendEl.children[idx];
   if(row) row.classList.add("selected");
 
-  // donut highlight (data-key 기준으로 안정적으로)
+  // donut highlight
   donutSvg.querySelectorAll("path").forEach(p => p.setAttribute("opacity", "0.25"));
   donutSvg.querySelectorAll("path").forEach(p => {
-    if(p.getAttribute("data-key") === key) p.setAttribute("opacity", "0.92");
+    if(p.getAttribute("fill") === c?.color) p.setAttribute("opacity", "0.92");
   });
 }
 
 /* ===== 모달 ===== */
-function openModal(){ renderDonut(); modalEl.classList.add("show"); }
+function openModal(){ modalEl.classList.add("show"); requestAnimationFrame(()=>{renderDonut();}); }
 function closeModal(){ modalEl.classList.remove("show"); }
 
 document.getElementById("openChart").onclick = openModal;
@@ -1321,19 +1285,5 @@ function render(){
 render();
 
 </script>
-
-<script>
-  // Service Worker (only works on https:// or localhost)
-  (function(){
-    if(!('serviceWorker' in navigator)) return;
-    if(location.protocol !== 'https:' && location.hostname !== 'localhost') return;
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js').catch(function(e){
-        console.warn('SW register failed', e);
-      });
-    });
-  })();
-</script>
-
 </body>
 </html>
