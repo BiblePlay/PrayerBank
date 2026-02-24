@@ -1,18 +1,19 @@
 {
-  "name": "기도통장 (Prayer Bank)",
-  "short_name": "기도통장",
+  "name": "Prayer Bank",
+  "short_name": "PrayerBank",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#F5F7FF",
-  "theme_color": "#2563eb",
+  "background_color": "#f6f7fb",
+  "theme_color": "#3b82f6",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

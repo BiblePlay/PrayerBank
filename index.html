@@ -372,54 +372,101 @@ body{
   cursor:pointer;
 }
 
-/* Fireworks (위↘ + 아래↗) */
+/* Toast + Fireworks(아래→위) */
+.toast{
+  position:fixed;
+  left:50%;
+  top:18px;
+  transform:translateX(-50%);
+  background:#fff;
+  border:1px solid rgba(16,24,40,.12);
+  box-shadow: 0 18px 42px rgba(16,24,40,.18);
+  padding:10px 12px;
+  border-radius:16px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  opacity:0;
+  pointer-events:none;
+  transition: .18s ease;
+  z-index:200; /* ✅ PC에서도 항상 보이게 */
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(2px); }
+.toast .badge{
+  width:34px; height:34px;
+  border-radius:12px;
+  background: rgba(245,158,11,.14);
+  display:grid;
+  place-items:center;
+  font-size:18px;
+}
+.toast .t{ font-weight:950; }
+.toast .s{ color:rgba(16,24,40,.60); font-size:12px; margin-top:2px; }
+
 .fireWrap{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  overflow: hidden;
+  position:fixed; inset:0;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:150;
 }
 .spark{
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  opacity: 0.95;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,.12));
-  will-change: transform, opacity;
+  position:absolute;
+  width:8px; height:12px;
+  border-radius:3px;
+  opacity:.95;
+  transform: translateY(0) rotate(0deg);
+  animation: rise 950ms ease-out forwards;
 }
-@keyframes burstUp{
-  0%{ transform: translate(-50%, 0) scale(1); opacity: .0; }
-  10%{ opacity: 1; }
-  100%{ transform: translate(-50%, -420px) scale(.85); opacity: 0; }
+@keyframes rise{
+  0%{ transform: translateY(0) rotate(0deg); opacity:.95; }
+  70%{ opacity:.95; }
+  100%{ transform: translateY(-115vh) rotate(220deg); opacity:0; }
 }
-@keyframes burstDown{
-  0%{ transform: translate(-50%, 0) scale(1); opacity: .0; }
-  10%{ opacity: 1; }
-  100%{ transform: translate(-50%, 420px) scale(.85); opacity: 0; }
+
+/* ===== fireworks (top/bottom) ===== */
+#fireWrap{ position: fixed; inset:0; pointer-events:none; z-index:99999; }
+.fw{ position: fixed; border-radius: 999px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.15)); }
+@keyframes fwDown { 
+  0%{ transform: translateY(0) scale(1); opacity:1; }
+  100%{ transform: translateY(42vh) scale(.85); opacity:0; }
 }
-.spark.up{ animation: burstUp 900ms ease-out forwards; }
-.spark.down{ animation: burstDown 900ms ease-out forwards; }
+@keyframes fwUp { 
+  0%{ transform: translateY(0) scale(1); opacity:1; }
+  100%{ transform: translateY(-42vh) scale(.85); opacity:0; }
+}
+.fwDown{ animation-name: fwDown; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
+.fwUp{ animation-name: fwUp; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
 
 </style>
 
-  <!-- PWA / Home Screen Icons -->
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-  <meta name="theme-color" content="#2563eb">
-  <script>
-    // file:// 로 직접 열면 manifest는 CORS로 막힙니다. (GitHub Pages 같은 https 환경에서만 주입)
-    (function(){
-      if(location.protocol === "http:" || location.protocol === "https:"){
-        var link = document.createElement("link");
-        link.rel = "manifest";
-        link.href = "manifest.json";
-        document.head.appendChild(link);
-      }
-    })();
-  </script>
+<!-- PWA (GitHub Pages) -->
+<script>
+
+(function(){
+  // file:// 로 열면 manifest/service worker가 CORS/보안 정책으로 막힐 수 있어요.
+  if(!location.protocol.startsWith('http')) return;
+
+  // manifest
+  var link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = './manifest.json';
+  document.head.appendChild(link);
+
+  // iOS 홈화면 아이콘/테마
+  var apple = document.createElement('link');
+  apple.rel = 'apple-touch-icon';
+  apple.href = './icons/icon-192.png';
+  document.head.appendChild(apple);
+
+  // service worker
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(){});
+    });
+  }
+})();
+
+</script>
 
 </head>
 
@@ -626,6 +673,13 @@ body{
 </div>
 
 <!-- Toast + Fireworks -->
+<div class="toast" id="toast">
+  <div class="badge">🎉</div>
+  <div>
+    <div class="t">축하해요!</div>
+    <div class="s" id="toastSub">골드코인 +1</div>
+  </div>
+</div>
 <div class="fireWrap" id="fireWrap"></div>
 
 <script>
@@ -676,6 +730,8 @@ const legendEl = document.getElementById("legend");
 const selectedMetaEl = document.getElementById("selectedMeta");
 const resetDonutBtn = document.getElementById("resetDonut");
 
+const toastEl = document.getElementById("toast");
+const toastSubEl = document.getElementById("toastSub");
 const fireWrap = document.getElementById("fireWrap");
 
 /* 날짜 */
@@ -846,25 +902,28 @@ function renderHeader(){
 }
 
 /* ===== 축하(토스트 3초 + 아래→위 폭죽) ===== */
+function showToast(addN){
+  toastSubEl.textContent = `골드코인 +${addN}`;
+  toastEl.classList.add("show");
+  clearTimeout(toastEl._t);
+  toastEl._t = setTimeout(()=>toastEl.classList.remove("show"), 3000); // ✅ 3초
+}
 
 /* 아래에서 위로 “폭죽” */
-
-function fireBurst(from){ // from: "top" | "bottom"
+function fireUp(){
   const colors = ["#2563eb","#4f7dff","#f59e0b","#22c55e","#ef4444","#a855f7"];
-  const baseX = 50 + (Math.random()*24 - 12); // 중앙 근처
-  const y = (from==="top") ? 30 : (window.innerHeight - 30);
-
-  for(let i=0;i<36;i++){
+  const baseX = 50 + (Math.random()*20 - 10); // 중앙 근처
+  for(let i=0;i<28;i++){
     const p = document.createElement("div");
-    p.className = "spark " + (from==="top" ? "down" : "up");
-    p.style.left = (baseX + (Math.random()*50 - 25)) + "vw";
-    p.style.top  = y + "px";
+    p.className = "spark";
+    p.style.left = (baseX + (Math.random()*40 - 20)) + "vw";
+    p.style.top  = (92 + Math.random()*8) + "vh"; // ✅ 아래에서 시작
     p.style.background = colors[Math.floor(Math.random()*colors.length)];
-    p.style.width = (6 + Math.random()*8) + "px";
-    p.style.height = p.style.width;
-    p.style.animationDelay = (Math.random()*80) + "ms";
-    fireWrapEl.appendChild(p);
-    p.addEventListener("animationend", ()=>p.remove(), {once:true});
+    p.style.animationDuration = (820 + Math.random()*420) + "ms";
+    p.style.width = (7 + Math.random()*8) + "px";
+    p.style.height = (10 + Math.random()*10) + "px";
+    fireWrap.appendChild(p);
+    p.addEventListener("animationend", ()=> p.remove());
   }
 }
 
@@ -872,8 +931,8 @@ function celebrateCoin(addN){
   coinImgEl.classList.remove("coinCelebrate");
   void coinImgEl.offsetWidth;
   coinImgEl.classList.add("coinCelebrate");
-  fireBurst("bottom");
-  fireBurst("top");
+  showToast(addN);
+  fireUp();
 }
 
 /* ===== 코인 ===== */
