@@ -6,6 +6,11 @@
 <meta name="color-scheme" content="light" />
 <meta name="theme-color" content="#f6f7fb" />
 <title>기도통장</title>
+<meta name="theme-color" content="#ffffff" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
+<link rel="apple-touch-icon" href="./icons/icon-192.png" />
 
 <style>
 :root{
@@ -417,57 +422,21 @@ body{
   transform: translateY(0) rotate(0deg);
   animation: rise 950ms ease-out forwards;
 }
+.spark.down{ animation: fall 950ms ease-out forwards; }
+.spark.down{
+  animation: fall 950ms ease-out forwards;
+}
 @keyframes rise{
   0%{ transform: translateY(0) rotate(0deg); opacity:.95; }
   70%{ opacity:.95; }
   100%{ transform: translateY(-115vh) rotate(220deg); opacity:0; }
 }
-
-/* ===== fireworks (top/bottom) ===== */
-#fireWrap{ position: fixed; inset:0; pointer-events:none; z-index:99999; }
-.fw{ position: fixed; border-radius: 999px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.15)); }
-@keyframes fwDown { 
-  0%{ transform: translateY(0) scale(1); opacity:1; }
-  100%{ transform: translateY(42vh) scale(.85); opacity:0; }
+@keyframes fall{
+  0%{ transform: translateY(0) rotate(0deg); opacity:.95; }
+  70%{ opacity:.95; }
+  100%{ transform: translateY(115vh) rotate(220deg); opacity:0; }
 }
-@keyframes fwUp { 
-  0%{ transform: translateY(0) scale(1); opacity:1; }
-  100%{ transform: translateY(-42vh) scale(.85); opacity:0; }
-}
-.fwDown{ animation-name: fwDown; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
-.fwUp{ animation-name: fwUp; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
-
 </style>
-
-<!-- PWA (GitHub Pages) -->
-<script>
-
-(function(){
-  // file:// 로 열면 manifest/service worker가 CORS/보안 정책으로 막힐 수 있어요.
-  if(!location.protocol.startsWith('http')) return;
-
-  // manifest
-  var link = document.createElement('link');
-  link.rel = 'manifest';
-  link.href = './manifest.json';
-  document.head.appendChild(link);
-
-  // iOS 홈화면 아이콘/테마
-  var apple = document.createElement('link');
-  apple.rel = 'apple-touch-icon';
-  apple.href = './icons/icon-192.png';
-  document.head.appendChild(apple);
-
-  // service worker
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js').catch(function(){});
-    });
-  }
-})();
-
-</script>
-
 </head>
 
 <body>
@@ -901,13 +870,7 @@ function renderHeader(){
   fitAmount();
 }
 
-/* ===== 축하(토스트 3초 + 아래→위 폭죽) ===== */
-function showToast(addN){
-  toastSubEl.textContent = `골드코인 +${addN}`;
-  toastEl.classList.add("show");
-  clearTimeout(toastEl._t);
-  toastEl._t = setTimeout(()=>toastEl.classList.remove("show"), 3000); // ✅ 3초
-}
+/* ===== 축하(문구 없이 폭죽만) ===== */
 
 /* 아래에서 위로 “폭죽” */
 function fireUp(){
@@ -927,12 +890,30 @@ function fireUp(){
   }
 }
 
+/* 위에서 아래로 “폭죽” */
+function fireDown(){
+  const colors = ["#2563eb","#4f7dff","#f59e0b","#22c55e","#ef4444","#a855f7"];
+  const baseX = 50 + (Math.random()*20 - 10);
+  for(let i=0;i<28;i++){
+    const p = document.createElement("div");
+    p.className = "spark down";
+    p.style.left = (baseX + (Math.random()*40 - 20)) + "vw";
+    p.style.top  = (2 + Math.random()*8) + "vh"; // ✅ 위에서 시작
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDuration = (820 + Math.random()*420) + "ms";
+    p.style.width = (7 + Math.random()*8) + "px";
+    p.style.height = (10 + Math.random()*10) + "px";
+    fireWrap.appendChild(p);
+    p.addEventListener("animationend", ()=> p.remove());
+  }
+}
+
 function celebrateCoin(addN){
   coinImgEl.classList.remove("coinCelebrate");
   void coinImgEl.offsetWidth;
   coinImgEl.classList.add("coinCelebrate");
-  showToast(addN);
   fireUp();
+  fireDown();
 }
 
 /* ===== 코인 ===== */
@@ -1303,6 +1284,13 @@ function render(){
   renderCatList();
 }
 render();
+
+// PWA(Service Worker)는 https(또는 localhost)에서만 동작합니다.
+try{
+  if('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+    navigator.serviceWorker.register('./sw.js');
+  }
+}catch(e){}
 </script>
 </body>
 </html>
