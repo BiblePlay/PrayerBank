@@ -6,11 +6,6 @@
 <meta name="color-scheme" content="light" />
 <meta name="theme-color" content="#f6f7fb" />
 <title>기도통장</title>
-<meta name="theme-color" content="#ffffff" />
-<link rel="manifest" href="./manifest.json" />
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
-<link rel="apple-touch-icon" href="./icons/icon-192.png" />
 
 <style>
 :root{
@@ -242,6 +237,93 @@ body{
   justify-content:space-between;
   gap:10px;
 }
+
+/* ===== Coin Flip Performance (no text) ===== */
+#coinOverlay{
+  position:fixed; inset:0;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(15, 23, 42, .14);
+  backdrop-filter: blur(2px);
+  z-index:99999;
+}
+#coinOverlay.show{ display:flex; }
+
+.coinStage{
+  width:min(64vw, 320px);
+  aspect-ratio:1/1;
+  perspective: 900px;
+  display:grid;
+  place-items:center;
+}
+
+.coin3d{
+  width:100%;
+  height:100%;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+  filter: drop-shadow(0 26px 40px rgba(0,0,0,.22));
+  /* vars for landing-to-slot */
+  --tx: 0px;
+  --ty: 0px;
+  --ts: .22;
+  animation: coinFlipToSlot 1100ms cubic-bezier(.2,.95,.2,1) forwards;
+}
+
+.coinFace{
+  position:absolute;
+  inset:0;
+  backface-visibility:hidden;
+  border-radius: 28%;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+}
+.coinFace img{
+  width:72%;
+  height:auto;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+.coinBack{
+  transform: rotateY(180deg);
+  filter: saturate(.95) brightness(.98);
+}
+.coinShine{
+  position:absolute;
+  inset:-20%;
+  background: linear-gradient(115deg,
+    rgba(255,255,255,0) 35%,
+    rgba(255,255,255,.55) 50%,
+    rgba(255,255,255,0) 65%);
+  transform: translateX(-60%) rotate(8deg);
+  opacity: 0;
+  pointer-events:none;
+  animation: shinePass 1100ms ease-out forwards;
+  mix-blend-mode: screen;
+}
+
+@keyframes coinFlipToSlot{
+  0%   { transform: translateY(18px) translateZ(-80px) scale(.55) rotateY(0deg); opacity:0; }
+  12%  { opacity:1; }
+  55%  { transform: translateY(-6px) translateZ(60px) scale(1.05) rotateY(540deg); opacity:1; }
+  78%  { transform: translateY(0px) translateZ(10px) scale(.98) rotateY(720deg); opacity:1; }
+  100% { transform: translate(var(--tx), var(--ty)) translateZ(0px) scale(var(--ts)) rotateY(720deg); opacity:0; }
+}
+
+@keyframes shinePass{
+  0%   { opacity:0; transform: translateX(-70%) rotate(8deg); }
+  35%  { opacity:.95; }
+  65%  { opacity:.8; transform: translateX(40%) rotate(8deg); }
+  100% { opacity:0; transform: translateX(80%) rotate(8deg); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  #coinOverlay{ background: transparent; backdrop-filter:none; }
+  .coin3d{ animation: none; opacity:1; transform:none; }
+  .coinShine{ display:none; }
+}
+
+
 .btnGhost:hover{ background:rgba(37,99,235,.11); }
 .btnGhost .sub{ color:var(--muted); font-weight:800; font-size:13px; }
 
@@ -422,19 +504,10 @@ body{
   transform: translateY(0) rotate(0deg);
   animation: rise 950ms ease-out forwards;
 }
-.spark.down{ animation: fall 950ms ease-out forwards; }
-.spark.down{
-  animation: fall 950ms ease-out forwards;
-}
 @keyframes rise{
   0%{ transform: translateY(0) rotate(0deg); opacity:.95; }
   70%{ opacity:.95; }
   100%{ transform: translateY(-115vh) rotate(220deg); opacity:0; }
-}
-@keyframes fall{
-  0%{ transform: translateY(0) rotate(0deg); opacity:.95; }
-  70%{ opacity:.95; }
-  100%{ transform: translateY(115vh) rotate(220deg); opacity:0; }
 }
 </style>
 </head>
@@ -870,7 +943,13 @@ function renderHeader(){
   fitAmount();
 }
 
-/* ===== 축하(문구 없이 폭죽만) ===== */
+/* ===== 축하(토스트 3초 + 아래→위 폭죽) ===== */
+function showToast(addN){
+  toastSubEl.textContent = `골드코인 +${addN}`;
+  toastEl.classList.add("show");
+  clearTimeout(toastEl._t);
+  toastEl._t = setTimeout(()=>toastEl.classList.remove("show"), 3000); // ✅ 3초
+}
 
 /* 아래에서 위로 “폭죽” */
 function fireUp(){
@@ -890,30 +969,90 @@ function fireUp(){
   }
 }
 
-/* 위에서 아래로 “폭죽” */
-function fireDown(){
-  const colors = ["#2563eb","#4f7dff","#f59e0b","#22c55e","#ef4444","#a855f7"];
-  const baseX = 50 + (Math.random()*20 - 10);
-  for(let i=0;i<28;i++){
-    const p = document.createElement("div");
-    p.className = "spark down";
-    p.style.left = (baseX + (Math.random()*40 - 20)) + "vw";
-    p.style.top  = (2 + Math.random()*8) + "vh"; // ✅ 위에서 시작
-    p.style.background = colors[Math.floor(Math.random()*colors.length)];
-    p.style.animationDuration = (820 + Math.random()*420) + "ms";
-    p.style.width = (7 + Math.random()*8) + "px";
-    p.style.height = (10 + Math.random()*10) + "px";
-    fireWrap.appendChild(p);
-    p.addEventListener("animationend", ()=> p.remove());
+
+function playCoinFlipToSlot(coinImgSrc){
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const overlay = document.getElementById('coinOverlay');
+  if(!overlay) return;
+
+  // reset
+  overlay.classList.remove('show');
+  overlay.innerHTML = '';
+
+  const stage = document.createElement('div');
+  stage.className = 'coinStage';
+
+  const coin = document.createElement('div');
+  coin.className = 'coin3d';
+
+  const face = document.createElement('div');
+  face.className = 'coinFace coinFront';
+  const img1 = document.createElement('img');
+  img1.src = coinImgSrc;
+  img1.alt = '';
+  face.appendChild(img1);
+
+  const back = document.createElement('div');
+  back.className = 'coinFace coinBack';
+  const img2 = document.createElement('img');
+  img2.src = coinImgSrc;
+  img2.alt = '';
+  back.appendChild(img2);
+
+  const shine = document.createElement('div');
+  shine.className = 'coinShine';
+
+  coin.appendChild(face);
+  coin.appendChild(back);
+  coin.appendChild(shine);
+  stage.appendChild(coin);
+  overlay.appendChild(stage);
+  overlay.classList.add('show');
+
+  // compute landing translation to the small coin icon (coinImgEl) if exists
+  try{
+    if(typeof coinImgEl !== 'undefined' && coinImgEl){
+      const target = coinImgEl.getBoundingClientRect();
+      const centerX = window.innerWidth/2;
+      const centerY = window.innerHeight/2;
+      const tx = (target.left + target.width/2) - centerX;
+      const ty = (target.top + target.height/2) - centerY;
+      coin.style.setProperty('--tx', `${tx}px`);
+      coin.style.setProperty('--ty', `${ty}px`);
+      // final scale roughly to match icon size
+      const ts = Math.max(0.18, Math.min(0.30, (target.width / Math.min(window.innerWidth*0.64, 320)) * 1.25));
+      coin.style.setProperty('--ts', ts.toFixed(3));
+    }
+  }catch(e){}
+
+  if(reduce){
+    // reduce motion: quick flash only
+    overlay.classList.add('show');
+    window.setTimeout(()=>{
+      overlay.classList.remove('show');
+      overlay.innerHTML='';
+    }, 500);
+    return;
   }
+
+  // cleanup after animation
+  const done = () => {
+    overlay.classList.remove('show');
+    overlay.innerHTML = '';
+    coin.removeEventListener('animationend', done);
+  };
+  coin.addEventListener('animationend', done);
 }
 
+
 function celebrateCoin(addN){
+  // subtle highlight on the small coin icon
   coinImgEl.classList.remove("coinCelebrate");
   void coinImgEl.offsetWidth;
   coinImgEl.classList.add("coinCelebrate");
-  fireUp();
-  fireDown();
+
+  // big flip performance (no text)
+  playCoinFlipToSlot(coinImgEl && coinImgEl.src ? coinImgEl.src : COIN_URL);
 }
 
 /* ===== 코인 ===== */
@@ -1284,13 +1423,8 @@ function render(){
   renderCatList();
 }
 render();
-
-// PWA(Service Worker)는 https(또는 localhost)에서만 동작합니다.
-try{
-  if('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
-    navigator.serviceWorker.register('./sw.js');
-  }
-}catch(e){}
 </script>
+
+  <div id="coinOverlay" aria-hidden="true"></div>
 </body>
 </html>

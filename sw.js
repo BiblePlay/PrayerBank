@@ -1,4 +1,4 @@
-const CACHE_NAME = 'prayer-bank-v1';
+const CACHE = 'prayer-bank-v1';
 const ASSETS = [
   './',
   './index.html',
@@ -7,26 +7,43 @@ const ASSETS = [
   './icons/icon-512.png'
 ];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
-  self.skipWaiting();
+self.addEventListener('install', (e) => {
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+    self.skipWaiting();
+  })());
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k)))))
-  );
-  self.clients.claim();
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => (k !== CACHE) ? caches.delete(k) : null));
+    self.clients.claim();
+  })());
 });
 
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  // only handle GET
   if (req.method !== 'GET') return;
-  event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-      return res;
-    }).catch(() => cached))
-  );
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(req, {ignoreSearch:true});
+    if (cached) return cached;
+    try{
+      const net = await fetch(req);
+      // cache same-origin
+      const url = new URL(req.url);
+      if (url.origin === self.location.origin) cache.put(req, net.clone());
+      return net;
+    }catch(err){
+      // fallback to index for navigation requests
+      if (req.mode === 'navigate'){
+        const idx = await cache.match('./index.html');
+        if (idx) return idx;
+      }
+      throw err;
+    }
+  })());
 });
