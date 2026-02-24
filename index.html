@@ -291,6 +291,7 @@ body{
   flex:0 0 auto;
 }
 .sheetHead .leftHead{ display:flex; align-items:center; gap:10px; min-width:0; }
+.rightHead{ display:flex; align-items:center; gap:10px; flex:0 0 auto; }
 .sheetHead .t{ font-weight:950; font-size:16px; white-space:nowrap; }
 .btnMiniGhost{
   border:1px solid rgba(16,24,40,.10);
@@ -371,84 +372,55 @@ body{
   cursor:pointer;
 }
 
-/* Toast + Fireworks(아래→위) */
-.toast{
-  position:fixed;
-  left:50%;
-  top:18px;
-  transform:translateX(-50%);
-  background:#fff;
-  border:1px solid rgba(16,24,40,.12);
-  box-shadow: 0 18px 42px rgba(16,24,40,.18);
-  padding:10px 12px;
-  border-radius:16px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  opacity:0;
-  pointer-events:none;
-  transition: .18s ease;
-  z-index:200; /* ✅ PC에서도 항상 보이게 */
-}
-.toast.show{ opacity:1; transform:translateX(-50%) translateY(2px); }
-.toast .badge{
-  width:34px; height:34px;
-  border-radius:12px;
-  background: rgba(245,158,11,.14);
-  display:grid;
-  place-items:center;
-  font-size:18px;
-}
-.toast .t{ font-weight:950; }
-.toast .s{ color:rgba(16,24,40,.60); font-size:12px; margin-top:2px; }
-
+/* Fireworks (위↘ + 아래↗) */
 .fireWrap{
-  position:fixed; inset:0;
-  pointer-events:none;
-  overflow:hidden;
-  z-index:150;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
 }
 .spark{
-  position:absolute;
-  width:8px; height:12px;
-  border-radius:3px;
-  opacity:.95;
-  transform: translate(0,0) rotate(0deg);
-  animation: fly var(--dur, 920ms) ease-out forwards;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  opacity: 0.95;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.12));
   will-change: transform, opacity;
 }
-@keyframes fly{
-  0%{ transform: translate(0,0) rotate(0deg); opacity:.95; }
-  70%{ opacity:.95; }
-  100%{ transform: translate(var(--dx), var(--dy)) rotate(240deg); opacity:0; }
+@keyframes burstUp{
+  0%{ transform: translate(-50%, 0) scale(1); opacity: .0; }
+  10%{ opacity: 1; }
+  100%{ transform: translate(-50%, -420px) scale(.85); opacity: 0; }
 }
-70%{ opacity:.95; }
-  100%{ transform: translateY(-115vh) rotate(220deg); opacity:0; }
+@keyframes burstDown{
+  0%{ transform: translate(-50%, 0) scale(1); opacity: .0; }
+  10%{ opacity: 1; }
+  100%{ transform: translate(-50%, 420px) scale(.85); opacity: 0; }
 }
+.spark.up{ animation: burstUp 900ms ease-out forwards; }
+.spark.down{ animation: burstDown 900ms ease-out forwards; }
 
-/* donut pointer fix */
-#donutSvg path{ pointer-events: all; cursor: pointer; }
 </style>
-<script>
 
-  // file:// 로 열면 manifest/service worker가 막히는 게 정상(CORS)이라
-  // 로컬 테스트 시 콘솔 에러를 줄이기 위해 https/localhost에서만 활성화합니다.
-  if (location.protocol !== "file:") {
-    const m = document.createElement("link");
-    m.rel = "manifest";
-    m.href = "manifest.json";
-    document.head.appendChild(m);
-  }
+  <!-- PWA / Home Screen Icons -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+  <meta name="theme-color" content="#2563eb">
+  <script>
+    // file:// 로 직접 열면 manifest는 CORS로 막힙니다. (GitHub Pages 같은 https 환경에서만 주입)
+    (function(){
+      if(location.protocol === "http:" || location.protocol === "https:"){
+        var link = document.createElement("link");
+        link.rel = "manifest";
+        link.href = "manifest.json";
+        document.head.appendChild(link);
+      }
+    })();
+  </script>
 
-
-// Service Worker (GitHub Pages / HTTPS에서만)
-if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(()=>{});
-  });
-}
-
-</script>
 </head>
 
 <body>
@@ -615,9 +587,11 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
     <div class="sheetHead">
       <div class="leftHead">
         <div class="t">기도차트 분석</div>
-        <button class="btnMiniGhost" id="resetDonut">전체</button>
       </div>
-      <button class="btnCloseBlue" id="closeModal">닫기</button>
+      <div class="rightHead">
+        <button class="btnMiniGhost" id="resetDonut" title="전체 보기">전체</button>
+        <button class="btnCloseBlue" id="closeModal">닫기</button>
+      </div>
     </div>
 
     <div class="sheetBody">
@@ -651,10 +625,10 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
   </div>
 </div>
 
-<!-- Fireworks -->
+<!-- Toast + Fireworks -->
 <div class="fireWrap" id="fireWrap"></div>
-<script>
 
+<script>
 /* ===== 설정 ===== */
 const RATE = 10000;
 const COIN_UNIT = 1_000_000;
@@ -873,48 +847,33 @@ function renderHeader(){
 
 /* ===== 축하(토스트 3초 + 아래→위 폭죽) ===== */
 
-}
+/* 아래에서 위로 “폭죽” */
 
-/* ===== 4방향 폭죽 (상/하/좌/우) ===== */
-function spawnSpark(vw, vh, dx, dy, color){
-  const p = document.createElement("div");
-  p.className = "spark";
-  p.style.left = vw + "vw";
-  p.style.top  = vh + "vh";
-  p.style.background = color;
-  p.style.width = (7 + Math.random()*9) + "px";
-  p.style.height = (10 + Math.random()*10) + "px";
-  p.style.borderRadius = (2 + Math.random()*6) + "px";
-  p.style.setProperty("--dx", dx);
-  p.style.setProperty("--dy", dy);
-  p.style.setProperty("--dur", (780 + Math.random()*520) + "ms");
-  fireWrapEl.appendChild(p);
-  p.addEventListener("animationend", ()=>p.remove(), {once:true});
-}
-function fireBurst4(intensity=1){
-  const colors = ["#2563eb","#4f7dff","#f59e0b","#22c55e","#ef4444","#a855f7","#06b6d4"];
-  const n = Math.min(140, Math.max(48, Math.round(80*intensity)));
-  const pick = ()=>colors[Math.floor(Math.random()*colors.length)];
-  for(let i=0;i<n;i++){
-    if(i%4===0){ // Top -> down
-      const x = 10 + Math.random()*80;
-      spawnSpark(x, -6, (Math.random()*22 - 11) + "vw", (95 + Math.random()*30) + "vh", pick());
-    } else if(i%4===1){ // Bottom -> up
-      const x = 10 + Math.random()*80;
-      spawnSpark(x, 106, (Math.random()*22 - 11) + "vw", (-95 - Math.random()*30) + "vh", pick());
-    } else if(i%4===2){ // Left -> right
-      const y = 12 + Math.random()*76;
-      spawnSpark(-6, y, (95 + Math.random()*30) + "vw", (Math.random()*20 - 10) + "vh", pick());
-    } else { // Right -> left
-      const y = 12 + Math.random()*76;
-      spawnSpark(106, y, (-95 - Math.random()*30) + "vw", (Math.random()*20 - 10) + "vh", pick());
-    }
+function fireBurst(from){ // from: "top" | "bottom"
+  const colors = ["#2563eb","#4f7dff","#f59e0b","#22c55e","#ef4444","#a855f7"];
+  const baseX = 50 + (Math.random()*24 - 12); // 중앙 근처
+  const y = (from==="top") ? 30 : (window.innerHeight - 30);
+
+  for(let i=0;i<36;i++){
+    const p = document.createElement("div");
+    p.className = "spark " + (from==="top" ? "down" : "up");
+    p.style.left = (baseX + (Math.random()*50 - 25)) + "vw";
+    p.style.top  = y + "px";
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    p.style.width = (6 + Math.random()*8) + "px";
+    p.style.height = p.style.width;
+    p.style.animationDelay = (Math.random()*80) + "ms";
+    fireWrapEl.appendChild(p);
+    p.addEventListener("animationend", ()=>p.remove(), {once:true});
   }
 }
 
 function celebrateCoin(addN){
-  const intensity = Math.min(2.2, 1 + (addN-1)*0.35);
-  fireBurst4(intensity);
+  coinImgEl.classList.remove("coinCelebrate");
+  void coinImgEl.offsetWidth;
+  coinImgEl.classList.add("coinCelebrate");
+  fireBurst("bottom");
+  fireBurst("top");
 }
 
 /* ===== 코인 ===== */
@@ -1061,6 +1020,7 @@ function renderDonut(){
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", donutArcPath(cx,cy,rOuter,rInner,start,end));
       path.setAttribute("fill", d.color);
+      path.setAttribute("data-key", d.key);
       path.setAttribute("opacity", "0.92");
       path.style.cursor = "pointer";
       path.addEventListener("click", () => selectDonut(d.key));
@@ -1118,6 +1078,7 @@ function renderDonut(){
 function selectDonut(key){
   const total = state.total || 0;
   const c = cats.find(x => x.key === key);
+  if(!c){ clearSelectionUI(); centerAmtEl.textContent = won(state.total || 0); return; }
   const amt = state.amtByCat[key] || 0;
   const pct = total > 0 ? (amt/total)*100 : 0;
 
@@ -1132,15 +1093,15 @@ function selectDonut(key){
   const row = legendEl.children[idx];
   if(row) row.classList.add("selected");
 
-  // donut highlight
+  // donut highlight (data-key 기준으로 안정적으로)
   donutSvg.querySelectorAll("path").forEach(p => p.setAttribute("opacity", "0.25"));
   donutSvg.querySelectorAll("path").forEach(p => {
-    if(p.getAttribute("fill") === c?.color) p.setAttribute("opacity", "0.92");
+    if(p.getAttribute("data-key") === key) p.setAttribute("opacity", "0.92");
   });
 }
 
 /* ===== 모달 ===== */
-function openModal(){ modalEl.classList.add("show"); requestAnimationFrame(()=>{renderDonut();}); }
+function openModal(){ renderDonut(); modalEl.classList.add("show"); }
 function closeModal(){ modalEl.classList.remove("show"); }
 
 document.getElementById("openChart").onclick = openModal;
@@ -1283,7 +1244,6 @@ function render(){
   renderCatList();
 }
 render();
-
 </script>
 </body>
 </html>

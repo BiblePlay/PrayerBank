@@ -1,8 +1,7 @@
 {
-  "name": "기도통장",
+  "name": "기도통장 (Prayer Bank)",
   "short_name": "기도통장",
   "start_url": "./",
-  "scope": "./",
   "display": "standalone",
   "background_color": "#F5F7FF",
   "theme_color": "#2563eb",
