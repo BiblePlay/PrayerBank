@@ -307,7 +307,7 @@ body{
   12%  { opacity:1; }
   55%  { transform: translateY(-6px) translateZ(60px) scale(1.05) rotateY(540deg); opacity:1; }
   78%  { transform: translateY(0px) translateZ(10px) scale(.98) rotateY(720deg); opacity:1; }
-  100% { transform: translate(var(--tx), var(--ty)) translateZ(0px) scale(var(--ts)) rotateY(720deg); opacity:0; }
+  100% { transform: translate(var(--tx, 0px), var(--ty, 0px)) translateZ(0px) scale(var(--ts, .86)) rotateY(720deg); opacity:0; }
 }
 
 @keyframes shinePass{
