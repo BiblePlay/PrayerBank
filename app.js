@@ -3,8 +3,8 @@ const RATE = 10000;
 const COIN_UNIT = 1_000_000;
 
 // 이미지 파일명 설정 (같은 폴더에 이미지를 넣어주세요)
-const PERF_COIN_SRC = "./coin-large.png"; // 퍼포먼스용 큰 코인
-const RIGHT_COIN_SRC = "./coin-small.png"; // 우측 골드코인 보기용 작은 코인
+const PERF_COIN_SRC = "coin-large.png"; // 퍼포먼스용 큰 코인
+const RIGHT_COIN_SRC = "coin-small.png"; // 우측 골드코인 보기용 작은 코인
 
 // 퍼포먼스 오버레이 (코인 던지기 애니메이션)
 const coinFxOverlay = document.getElementById("coinFxOverlay");
