@@ -9,11 +9,10 @@
   
   <!-- PWA / iOS Safari 대응 -->
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="기도통장">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="icon-192.png"> 
   
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
@@ -32,9 +31,20 @@
           </div>
         </div>
         <div class="balance">
-          <div class="label">총 적립금</div>
+          <div class="balanceTop">
+            <div class="label">총 적립금</div>
+            <button class="btnSaveIcon" id="saveIconBtn" title="전체 저장 (JSON 파일)">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span class="saveIconLabel">저장</span>
+            </button>
+          </div>
           <div class="num" id="totalAmount">₩0</div>
           <div class="mini">1분 = <b>₩10,000</b> 적립</div>
+          <div class="autoSaveTag" id="autoSaveTag" style="display:none;">저장됨 ✓</div>
         </div>
       </div>
 
@@ -190,28 +200,41 @@
   </div>
 
   <div style="margin-top:12px; border-top:1px solid rgba(16,24,40,.10); padding-top:12px;">
-    <div style="font-weight:950; margin-bottom:8px;">통합 백업/복구</div>
-    <div style="color:rgba(16,24,40,.65); font-size:12px; line-height:1.45;">
-      • <b>저장</b>: 기도시간 및 작정기도 기록을 파일로 저장합니다.<br/>
-      • <b>복구</b>: 저장해둔 파일을 불러옵니다.
+    <div style="font-weight:950; margin-bottom:6px;">백업 저장</div>
+    <div style="color:rgba(16,24,40,.65); font-size:12px; line-height:1.6; margin-bottom:10px;">
+      기도기록(적립금)과 작정/특별기도 리스트를 파일로 저장합니다.
     </div>
-    <div style="display:flex; gap:10px; margin-top:10px;">
-      <button id="backupBtn" style="
-        flex:1; padding:12px 14px; border-radius:14px;
-        border:1px solid rgba(16,24,40,.12);
-        background:rgba(16,24,40,.04);
-        color:var(--text); font-weight:950; cursor:pointer;">
-        ⬇︎ 저장
-      </button>
-      <button id="restoreBtn" style="
-        flex:1; padding:12px 14px; border-radius:14px;
-        border:1px solid rgba(37,99,235,.25);
-        background:rgba(37,99,235,.08);
-        color:var(--text); font-weight:950; cursor:pointer;">
-        ⬆︎ 복구
-      </button>
-      <input type="file" id="restoreFile" accept="application/json" hidden>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+      <button id="backupAllBtn" style="padding:11px 8px;border-radius:14px;border:1px solid rgba(16,24,40,.12);background:rgba(16,24,40,.04);color:var(--text);font-weight:950;cursor:pointer;font-size:13px;">⬇︎ 전체</button>
+      <button id="backupPrayerBtn" style="padding:11px 8px;border-radius:14px;border:1px solid rgba(37,99,235,.20);background:rgba(37,99,235,.06);color:var(--text);font-weight:950;cursor:pointer;font-size:13px;">⬇︎ 기도기록</button>
+      <button id="backupListBtn" style="padding:11px 8px;border-radius:14px;border:1px solid rgba(124,58,237,.20);background:rgba(124,58,237,.06);color:var(--text);font-weight:950;cursor:pointer;font-size:13px;">⬇︎ 작정리스트</button>
     </div>
+  </div>
+
+  <div style="margin-top:12px; border-top:1px solid rgba(16,24,40,.10); padding-top:12px;">
+    <div style="font-weight:950; margin-bottom:6px;">복구 불러오기</div>
+    <div style="color:rgba(16,24,40,.65); font-size:12px; line-height:1.6; margin-bottom:10px;">
+      저장한 파일을 선택하면 <b>전체 / 기도기록만 / 리스트만</b> 중 어떤 걸 복구할지 선택할 수 있어요.
+    </div>
+    <button id="restoreBtn" style="
+      width:100%; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(37,99,235,.25);
+      background:rgba(37,99,235,.08);
+      color:var(--text); font-weight:950; cursor:pointer;">
+      ⬆︎ 파일 불러와서 복구
+    </button>
+    <input type="file" id="restoreFile" accept="application/json" hidden>
+  </div>
+
+  <!-- 복구 옵션 선택 패널 (파일 로드 후 표시) -->
+  <div id="restoreOptionPanel" style="display:none; margin-top:10px; border:1px solid rgba(37,99,235,.20); border-radius:16px; padding:12px; background:rgba(37,99,235,.04);">
+    <div style="font-size:12px; font-weight:950; margin-bottom:8px; color:rgba(16,24,40,.80);">무엇을 복구할까요?</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+      <button id="restoreOptAll" style="padding:10px 6px;border-radius:12px;border:1px solid rgba(37,99,235,.25);background:#fff;font-weight:950;cursor:pointer;font-size:12px;">전체</button>
+      <button id="restoreOptPrayer" style="padding:10px 6px;border-radius:12px;border:1px solid rgba(37,99,235,.25);background:#fff;font-weight:950;cursor:pointer;font-size:12px;">기도기록만</button>
+      <button id="restoreOptList" style="padding:10px 6px;border-radius:12px;border:1px solid rgba(37,99,235,.25);background:#fff;font-weight:950;cursor:pointer;font-size:12px;">리스트만</button>
+    </div>
+    <div style="margin-top:8px; font-size:11px; color:rgba(16,24,40,.55);" id="restoreFileInfo"></div>
   </div>
 
   <div style="margin-top:12px; border-top:1px solid rgba(16,24,40,.10); padding-top:12px;">
