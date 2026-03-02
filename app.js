@@ -962,8 +962,7 @@ function PBCH_renderAll(){
 
 /* ===== PBCH Helpers ===== */
 function PBCH_toast(t, s){
-  if(typeof showToast === "function") showToast(1); // Just show toast with +1 coin
-  else alert(t + (s?("\n"+s):""));
+  alert(t + (s ? "\n" + s : ""));
 }
 
 /* ===== PBCH History (Snapshots) ===== */
