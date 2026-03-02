@@ -3,8 +3,8 @@ const RATE = 10000;
 const COIN_UNIT = 1_000_000;
 
 // 이미지 파일명 설정 (같은 폴더에 이미지를 넣어주세요)
-const PERF_COIN_SRC = "coin-large.png"; // 퍼포먼스용 큰 코인
-const RIGHT_COIN_SRC = "coin-small.png"; // 우측 골드코인 보기용 작은 코인
+const PERF_COIN_SRC = "./coin-large.png"; // 퍼포먼스용 큰 코인
+const RIGHT_COIN_SRC = "./coin-small.png"; // 우측 골드코인 보기용 작은 코인
 
 // 퍼포먼스 오버레이 (코인 던지기 애니메이션)
 const coinFxOverlay = document.getElementById("coinFxOverlay");
@@ -109,36 +109,25 @@ coinImgEl.onerror = () => { coinImgEl.src = RIGHT_COIN_FALLBACK; };
 
 
 /* ===== 백업(저장) / 복구 ===== */
+const backupBtn = document.getElementById("backupBtn");
 const restoreBtn = document.getElementById("restoreBtn");
 const restoreFile = document.getElementById("restoreFile");
 
-// ── 자동저장 알림 ──────────────────────────────────────────
-// (실제 UI 트리거는 _triggerAutoSaveUI() — save() 에서 호출됨)
-function showAutoSaveTag() { _triggerAutoSaveUI(); }
-
-// ── 빌드 헬퍼 ─────────────────────────────────────────────
-function buildBackupPayload(type) {
-  // type: "all" | "prayer" | "list"
+function buildBackupPayload(){
   const date = new Date();
-  const base = {
+  return {
     app: "PrayerBank",
     version: 2,
     year: YEAR,
     savedAt: date.toISOString(),
-    backupType: type,
+    storageKey: STORAGE_KEY,
+    state: state,
+    pbch: PBCH_load(),
+    pbchHistory: PBCH_loadHistory()
   };
-  if (type === "all" || type === "prayer") {
-    base.storageKey = STORAGE_KEY;
-    base.state = state;
-  }
-  if (type === "all" || type === "list") {
-    base.pbch = PBCH_load();
-    base.pbchHistory = PBCH_loadHistory();
-  }
-  return base;
 }
 
-function downloadJson(filename, obj) {
+function downloadJson(filename, obj){
   const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -147,70 +136,63 @@ function downloadJson(filename, obj) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 6000);
+  setTimeout(()=>URL.revokeObjectURL(url), 6000);
 }
 
-function doDownload(type) {
-  const y = YEAR;
-  const date = new Date().toISOString().slice(0, 10);
-  const suffix = type === "all" ? "전체" : type === "prayer" ? "기도기록" : "작정리스트";
-  downloadJson(`prayerbank_${suffix}_${y}_${date}.json`, buildBackupPayload(type));
-}
-
-// 헤더 저장 아이콘 버튼
-const saveIconBtn = document.getElementById("saveIconBtn");
-if (saveIconBtn) {
-  saveIconBtn.addEventListener("click", () => {
-    doDownload("all");
-    // 잠깐 "저장됨" 표시
-    showAutoSaveTag();
+if(backupBtn){
+  backupBtn.addEventListener("click", () => {
+    const y = YEAR;
+    const date = new Date().toISOString().slice(0,10);
+    downloadJson(`prayerbank_all_${y}_${date}.json`, buildBackupPayload());
   });
 }
 
-// 관리자 3-버튼 저장
-const backupAllBtn = document.getElementById("backupAllBtn");
-const backupPrayerBtn = document.getElementById("backupPrayerBtn");
-const backupListBtn = document.getElementById("backupListBtn");
-if (backupAllBtn) backupAllBtn.addEventListener("click", () => doDownload("all"));
-if (backupPrayerBtn) backupPrayerBtn.addEventListener("click", () => doDownload("prayer"));
-if (backupListBtn) backupListBtn.addEventListener("click", () => doDownload("list"));
-
-// ── 복구: 파일 선택 → 옵션 패널 표시 ──────────────────────
-let _pendingRestoreData = null;
-
-if (restoreBtn && restoreFile) {
-  restoreBtn.addEventListener("click", () => {
-    _pendingRestoreData = null;
-    restoreFile.value = "";
-    const panel = document.getElementById("restoreOptionPanel");
-    if (panel) panel.style.display = "none";
-    restoreFile.click();
-  });
+if(restoreBtn && restoreFile){
+  restoreBtn.addEventListener("click", () => restoreFile.click());
 
   restoreFile.addEventListener("change", (e) => {
     const file = e.target.files && e.target.files[0];
-    if (!file) return;
+    if(!file) return;
+
     const reader = new FileReader();
     reader.onload = () => {
-      try {
+      try{
         const data = JSON.parse(reader.result);
-        if (!data || data.app !== "PrayerBank") {
+
+        if(!data || data.app !== "PrayerBank"){
           alert("올바른 기도통장 백업 파일이 아닙니다.");
           return;
         }
-        _pendingRestoreData = data;
-        // 파일 정보 표시
-        const info = document.getElementById("restoreFileInfo");
-        if (info) {
-          const t = data.savedAt ? new Date(data.savedAt).toLocaleString("ko-KR") : "알 수 없음";
-          const bt = data.backupType === "prayer" ? "기도기록" : data.backupType === "list" ? "작정리스트" : "전체";
-          info.textContent = `저장일: ${t}  /  종류: ${bt}`;
+
+        if(!confirm("이 파일로 현재 기록을 덮어써서 복구할까요?")) return;
+
+        if(data.state) {
+          state = data.state;
+          state.activeKey = state.activeKey || "me";
+          state.total = Number(state.total || 0);
+          state.minsByCat = state.minsByCat || Object.fromEntries(cats.map(c => [c.key, 0]));
+          state.amtByCat  = state.amtByCat  || Object.fromEntries(cats.map(c => [c.key, 0]));
+          for(const c of cats){
+            if(state.minsByCat[c.key] == null) state.minsByCat[c.key] = 0;
+            if(state.amtByCat[c.key] == null) state.amtByCat[c.key] = 0;
+          }
+          save();
         }
-        const panel = document.getElementById("restoreOptionPanel");
-        if (panel) panel.style.display = "block";
-      } catch (err) {
+        
+        if(data.pbch) PBCH_save(data.pbch);
+        if(data.pbchHistory) PBCH_saveHistory(data.pbchHistory);
+
+        pending = 0;
+        minsEl.textContent = "0";
+        prevCoins = null;
+
+        render();
+        if(typeof PBCH_renderAll === "function") PBCH_renderAll();
+        
+        alert("복구가 완료되었습니다.");
+      }catch(err){
         alert("파일을 불러올 수 없습니다. (JSON 형식 오류)");
-      } finally {
+      }finally{
         restoreFile.value = "";
       }
     };
@@ -218,74 +200,10 @@ if (restoreBtn && restoreFile) {
   });
 }
 
-function doRestore(type) {
-  const data = _pendingRestoreData;
-  if (!data) return;
-
-  if (type === "all" || type === "prayer") {
-    if (!data.state) {
-      alert("이 파일에는 기도기록(적립금) 데이터가 없습니다.");
-      if (type === "prayer") return;
-    } else {
-      if (!confirm(`기도기록(적립금)을 이 파일로 덮어쓸까요?`)) return;
-      state = data.state;
-      state.activeKey = state.activeKey || "me";
-      state.total = Number(state.total || 0);
-      state.minsByCat = state.minsByCat || Object.fromEntries(cats.map(c => [c.key, 0]));
-      state.amtByCat  = state.amtByCat  || Object.fromEntries(cats.map(c => [c.key, 0]));
-      for (const c of cats) {
-        if (state.minsByCat[c.key] == null) state.minsByCat[c.key] = 0;
-        if (state.amtByCat[c.key] == null) state.amtByCat[c.key] = 0;
-      }
-      _baseSave();
-    }
-  }
-
-  if (type === "all" || type === "list") {
-    if (!data.pbch && !data.pbchHistory) {
-      alert("이 파일에는 작정/특별기도 리스트 데이터가 없습니다.");
-      if (type === "list") return;
-    } else {
-      if (type === "list" && !confirm("작정/특별기도 리스트를 이 파일로 덮어쓸까요?")) return;
-      if (data.pbch) PBCH_save(data.pbch);
-      if (data.pbchHistory) PBCH_saveHistory(data.pbchHistory);
-    }
-  }
-
-  pending = 0;
-  minsEl.textContent = "0";
-  prevCoins = null;
-  render();
-  if (typeof PBCH_renderAll === "function") PBCH_renderAll();
-  _pendingRestoreData = null;
-  const panel = document.getElementById("restoreOptionPanel");
-  if (panel) panel.style.display = "none";
-  alert("복구 완료!");
-}
-
-const restoreOptAll    = document.getElementById("restoreOptAll");
-const restoreOptPrayer = document.getElementById("restoreOptPrayer");
-const restoreOptList   = document.getElementById("restoreOptList");
-if (restoreOptAll)    restoreOptAll.addEventListener("click",    () => doRestore("all"));
-if (restoreOptPrayer) restoreOptPrayer.addEventListener("click", () => doRestore("prayer"));
-if (restoreOptList)   restoreOptList.addEventListener("click",   () => doRestore("list"));
-
 
 /* ===== 유틸 ===== */
 const won = (n) => "₩" + Math.round(n).toLocaleString("ko-KR");
-function _baseSave(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-let _autoSaveTimerEarly = null;
-function _triggerAutoSaveUI(){
-  const tag = document.getElementById("autoSaveTag");
-  if(!tag) return;
-  tag.style.display = "inline-flex";
-  clearTimeout(_autoSaveTimerEarly);
-  _autoSaveTimerEarly = setTimeout(()=>{ tag.style.display = "none"; }, 2200);
-}
-function save(){
-  _baseSave();
-  _triggerAutoSaveUI();
-}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 function load(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -788,7 +706,6 @@ function PBCH_load(){
 }
 function PBCH_save(arr){
   localStorage.setItem(PBCH_KEY, JSON.stringify(arr));
-  _triggerAutoSaveUI();
 }
 function PBCH_norm(ch){
   ch = ch || {};
