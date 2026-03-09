@@ -7,7 +7,6 @@
   <meta name="theme-color" content="#f6f7fb" />
   <title>기도통장</title>
   
-  <!-- PWA / iOS Safari 대응 -->
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="favicon2?v=2.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,13 +14,12 @@
   <meta name="apple-mobile-web-app-title" content="기도통장">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   
-  <link rel="stylesheet" href="style.css?v=3">
-  <script src="app.js?v=3" defer></script>
+  <link rel="stylesheet" href="style.css?v=4">
+  <script src="app.js?v=4" defer></script>
 </head>
 <body>
 <div class="wrap">
   <div class="grid">
-    <!-- LEFT -->
     <section class="card">
       <div class="header">
         <div class="brand">
@@ -61,7 +59,6 @@
       </div>
     </section>
 
-    <!-- RIGHT -->
     <aside class="card">
       <div class="side">
         <div class="box">
@@ -90,7 +87,6 @@
             </div>
             <div class="pbchTitleBtns">
               <button class="pbchHubMini" id="pbchHubBtn" type="button" aria-label="기록" title="기록">
-                <!-- 여기에 기존 pbIconRecord base64 문자열을 붙여넣으세요 -->
                 <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
               </button>
               <button class="pbchAddBtn" id="pbchAddBtn" type="button" aria-label="추가" title="추가">
@@ -124,7 +120,6 @@
   </div>
 </div>
 
-<!-- PB Challenges Modal -->
 <div class="pbchModalBack" id="pbchModalBack"></div>
 <div class="pbchModal" id="pbchModal">
   <h3>작정기도 추가</h3>
@@ -157,7 +152,6 @@
   </div>
 </div>
 
-<!-- Admin Panel (Hidden, toggled by F1 or 5 taps on title) -->
 <div id="adminPanel" style="
   position:fixed; right:16px; bottom:16px; z-index:9999;
   width:min(420px, calc(100vw - 32px));
@@ -186,6 +180,15 @@
       padding:12px; border-radius:16px; border:1px solid rgba(37,99,235,.20);
       background:rgba(37,99,235,.08); cursor:pointer; font-weight:950;">
       1분 더하기 (+)
+    </button>
+  </div>
+
+  <div style="margin-top:12px;">
+    <button id="adminRenameBtn" style="
+      width:100%; padding:12px; border-radius:16px;
+      border:1px solid rgba(16,24,40,.12); background:rgba(16,24,40,.04);
+      font-weight:950; cursor:pointer;">
+      현재 선택된 항목 이름 바꾸기
     </button>
   </div>
 
@@ -235,7 +238,6 @@
   </div>
 </div>
 
-<!-- Modal -->
 <div class="modalOverlay" id="modal">
   <div class="sheet" role="dialog" aria-modal="true">
     <div class="sheetHead">
@@ -279,7 +281,6 @@
   </div>
 </div>
 
-<!-- Toast + Fireworks -->
 <div class="toast" id="toast">
   <div class="badge">🎉</div>
   <div>
@@ -290,7 +291,6 @@
 <div class="fireWrap" id="fireWrap"></div>
 <div id="coinFxOverlay" aria-hidden="true"><img id="coinFxImg" alt="coin" /></div>
 
-<!-- PBCH Gear Action Modal -->
 <div class="pbchSheetBack" id="pbchSheetBack" style="display:none;">
   <div class="pbchSheet" role="dialog" aria-modal="true" aria-label="작정기도 관리">
     <div class="pbchSheetTop">
@@ -309,7 +309,6 @@
   </div>
 </div>
 
-<!-- ===== Records (Excel list) Modal ===== -->
 <div id="pbRecBack" style="display:none;">
   <div class="pbRecModal" role="dialog" aria-modal="true" aria-label="작정기도 기록">
     <div class="pbRecTop">
