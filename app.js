@@ -60,6 +60,16 @@ const cats = [
   { key:"vow",      label:"작정기도",  color:"#ef4444" },
 ];
 
+// --- 추가된 부분 시작 (커스텀 라벨 불러오기) ---
+const CUSTOM_LABELS_KEY = "pb_custom_labels_v1";
+try {
+  const customLabels = JSON.parse(localStorage.getItem(CUSTOM_LABELS_KEY)) || {};
+  cats.forEach(c => {
+    if (customLabels[c.key]) c.label = customLabels[c.key];
+  });
+} catch(e) {}
+// --- 추가된 부분 끝 ---
+
 const YEAR = new Date().getFullYear();
 const STORAGE_KEY = `prayer_bank_${YEAR}_v1`;
 const LEGACY_KEY = "prayer_bank_stable_coin_v1";
@@ -623,6 +633,42 @@ function adjustMinutes(delta){
 if(adminMinus) adminMinus.onclick = () => adjustMinutes(-1);
 if(adminPlus)  adminPlus.onclick  = () => adjustMinutes(+1);
 
+// --- 추가된 부분 시작 (이름 변경 기능) ---
+const adminRenameBtn = document.getElementById("adminRenameBtn");
+if(adminRenameBtn) {
+  adminRenameBtn.onclick = () => {
+    const a = activeCat(); // 현재 선택된 탭 확인
+    if(!a) return;
+
+    // 이름 입력창 띄우기
+    const newName = prompt(`'${a.label}' 항목의 새 이름을 입력하세요.\n(최대 6글자, 화면 깨짐 방지)`, a.label);
+    if(newName === null) return; // 취소 누름
+
+    const trimmed = newName.trim();
+    if(trimmed === "") {
+      alert("이름을 비워둘 수 없습니다.");
+      return;
+    }
+    if(trimmed.length > 6) {
+      alert("화면 글자가 깨질 수 있어 6글자 이내로 적어주세요!");
+      return;
+    }
+
+    // 이름 변경 적용 및 저장
+    a.label = trimmed;
+    try {
+      const customLabels = JSON.parse(localStorage.getItem(CUSTOM_LABELS_KEY)) || {};
+      customLabels[a.key] = trimmed;
+      localStorage.setItem(CUSTOM_LABELS_KEY, JSON.stringify(customLabels));
+    } catch(e) {}
+
+    render(); // 화면 새로고침
+    alert(`'${trimmed}'(으)로 이름이 변경되었습니다.`);
+    setAdmin(false); // 관리자 창 닫기
+  };
+}
+// --- 추가된 부분 끝 ---
+
 // 초기화: RESET 입력 + confirm 2중 안전장치
 if(adminReset) adminReset.onclick = () => {
   const txt = (adminResetText?.value || "").trim().toUpperCase();
@@ -635,6 +681,7 @@ if(adminReset) adminReset.onclick = () => {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(PBCH_KEY);
   localStorage.removeItem(PBCH_HISTORY_KEY);
+  localStorage.removeItem(CUSTOM_LABELS_KEY); // 커스텀 라벨도 초기화
 
   state = {
     activeKey: "me",
@@ -646,9 +693,9 @@ if(adminReset) adminReset.onclick = () => {
   prevCoins = null;
 
   save();
-  render();
-  PBCH_renderAll();
-  setAdmin(false);
+  
+  // 리셋 후 페이지 새로고침하여 기본 라벨로 완벽 복귀
+  window.location.reload();
 };
 
 
